@@ -1,0 +1,24 @@
+{
+  // Посмотреть все опции в консоли можно командой: npx tsc --project ./tsconfig.dist.json --showConfig
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "incremental": false,
+    "tsBuildInfoFile": null,
+    "noEmit": false,
+    "noEmitOnError": true,
+    "declaration": true,
+    "declarationMap": false,
+    "outDir": "./dist"
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/_*",
+    "src/**/*test.ts",
+    "src/**/*test.js",
+    "src/jest_test_extends"
+  ],
+  "references": null
+}

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="/assets/style.css" rel="stylesheet">
+  <title>Slow Response</title>
+</head>
+
+<body>
+  <a href="/">Home</a>
+
+  <h1>Slow Response</h1>
+  <p>
+    Симуляция очень медленного ответа сервера.
+  </p>
+  <p>
+    <input type="text" placeholder="time in seconds, default:1" data-time value="">
+  </p>
+  <p>
+    Выбор и чтение каталога <button data-btnGetImages>Get Images</button> с изображениями.
+  </p>
+  <p class="dialog_out" data-resultOutReadDir></p>
+  <div class="dialog_out multi" data-resultOutImage></div>
+
+  <script>
+    const inTime = document.querySelector('[data-time]')
+    const btnReadDir = document.querySelector('[data-btnGetImages]')
+    const resultOutReadDir = document.querySelector('[data-resultOutReadDir]')
+    const resultOutImage = document.querySelector('[data-resultOutImage]')
+
+    function addImage (name, href) {
+      const item = document.createElement('div')
+      const title = document.createElement('div')
+      title.textContent = name
+      const img = document.createElement('img')
+      img.src = href
+      item.append(title, img)
+      resultOutImage.append(item)
+    }
+
+    btnReadDir.addEventListener('click', async () => {
+      let time = 1
+      try {
+        const v = Number.parseInt(inTime.value)
+        if (Number.isInteger(v) && v > 0 && v <= 100) {
+          time = v
+        }
+        else {
+          inTime.value = '1'
+        }
+      } catch (_e) { /**/ }
+
+      resultOutImage.textContent = ''
+      const res = await fetch('/api/read_dir')
+      if (!res.ok) {
+        resultOutReadDir.textContent = 'Каталог не выбран или произошла ошибка.'
+        return
+      }
+      const json = await res.json()
+      if (!json.ok) {
+        resultOutReadDir.textContent = json.error
+        return
+      }
+      if (json.data.files.length === 0) {
+        resultOutReadDir.innerHTML = json.data.dir + '<br><br>' + 'files:0'
+        return
+      }
+
+      resultOutReadDir.textContent = json.data.dir
+      for (const name of json.data.files) {
+        const path = encodeURIComponent(`${json.data.dir}/${name}`)
+        const href = `/api/get_file/${time}/${path}`
+        addImage(name, href)
+      }
+    })
+
+    addImage('example 1', '/assets/sample_image_1.png')
+    addImage('example 2', '/assets/sample_image_2.png')
+    addImage('example 3', '/assets/sample_image_3.png')
+  </script>
+</body>
+
+</html>

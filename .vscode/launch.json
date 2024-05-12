@@ -1,0 +1,47 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    // DOC https://github.com/TypeStrong/ts-node
+    // На момент 15.04.2024 эта конфигурация работает в node_v20, но выдает предупреждение:
+    // (node:18124) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`: ...
+    {
+      "name": "Launch TS File",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "runtimeArgs": [
+        "--loader",
+        "ts-node/esm",
+        // "--trace-warnings"
+      ],
+      "env": {
+        "TS_NODE_PROJECT": "tsconfig.json"
+      },
+      // Обе опции "program" или "args" работают, но разница будет в пути - либо относительно рабочего каталога, либо абсолютный.
+      // '--loader' 'ts-node/esm' '.\src\foo.ts'
+      "program": "${file}",
+      // '--loader' 'ts-node/esm' 'C:\...\src\foo.ts'
+      // "args": [
+      //   "${file}"
+      // ],
+    },
+    {
+      "name": "Launch JS File",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${file}"
+    }
+  ]
+}

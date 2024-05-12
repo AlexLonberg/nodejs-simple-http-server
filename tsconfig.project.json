@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "strict": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    // Файл tsconfig.json говорит: "Что этот файл не может использовать noEmit:true",
+    // а при удалении опции из tsconfig.json этот файл отвечает: "Не могу перезаписать файл eslint.config.js".
+    // ... таким образом просто укажем временный каталог
+    "outDir": "./.temp"
+  },
+  "files": [
+    "eslint.config.js",
+    "jest.config.ts",
+    "demo/server.ts"
+  ],
+  // https://typestrong.org/ts-node/docs/configuration/
+  "ts-node": {
+    "transpileOnly": true,
+  }
+}

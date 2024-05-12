@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="/assets/style.css" rel="stylesheet">
+  <title>Dialog</title>
+</head>
+
+<body>
+  <a href="/">Home</a>
+  <h1>Dialog</h1>
+  <p>
+    Файловый диалог выбора каталога.
+    Нажмите на эту кнопку <button data-btnSelectDir>Select Folder</button>,
+    дождитесь открытия диалога и выберите каталог.
+  </p>
+  <p class="dialog_out" data-outSelectDir></p>
+  <p>
+    Выбор и чтение каталога <button data-btnReadDir>Read Dir</button>.
+    Этот пример отобразит только <code>image</code> файлы.
+  </p>
+  <p class="dialog_out" data-resultOutReadDir></p>
+  <p class="dialog_out single" data-resultOutImage></p>
+  <script>
+    const btnSelectDir = document.querySelector('[data-btnSelectDir]')
+    const outSelectDir = document.querySelector('[data-outSelectDir]')
+
+    const btnReadDir = document.querySelector('[data-btnReadDir]')
+    const resultOutReadDir = document.querySelector('[data-resultOutReadDir]')
+    const resultOutImage = document.querySelector('[data-resultOutImage]')
+
+    btnSelectDir.addEventListener('click', async () => {
+      const res = await fetch('/api/select_dir')
+      if (res.ok) {
+        const json = await res.json()
+        outSelectDir.textContent = json.ok ? json.data : json.error
+      }
+      else {
+        outSelectDir.textContent = 'Каталог не выбран или произошла ошибка.'
+      }
+    })
+
+    async function show (href) {
+      const data = await fetch(href)
+      const blob = await data.blob()
+      resultOutImage.textContent = ''
+      const img = document.createElement('img')
+      img.src = URL.createObjectURL(blob)
+      resultOutImage.append(img)
+    }
+
+    btnReadDir.addEventListener('click', async () => {
+      resultOutImage.textContent = ''
+      const res = await fetch('/api/read_dir')
+      if (!res.ok) {
+        resultOutReadDir.textContent = 'Каталог не выбран или произошла ошибка.'
+        return
+      }
+      const json = await res.json()
+      if (!json.ok) {
+        resultOutReadDir.textContent = json.error
+        return
+      }
+      if (json.data.files.length === 0) {
+        resultOutReadDir.innerHTML = json.data.dir + '<br><br>' + 'files:0'
+        return
+      }
+
+      resultOutReadDir.innerHTML = json.data.dir
+      const ul = document.createElement('ul')
+      for (const item of json.data.files) {
+        const li = document.createElement('li')
+        const a = document.createElement('a')
+        const path = encodeURIComponent(`${json.data.dir}/${item}`)
+        const href = `/api/get_file/${path}`
+        a.href = href
+        a.textContent = item
+        li.append(a)
+        ul.append(li)
+        a.addEventListener('click', (e) => {
+          e.preventDefault()
+          show(href)
+        })
+      }
+      resultOutReadDir.append(ul)
+      resultOutImage.innerHTML = '<img href="#">'
+    })
+
+  </script>
+</body>
+
+</html>

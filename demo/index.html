@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="/assets/style.css" rel="stylesheet">
+  <title>Demo</title>
+</head>
+
+<body>
+  <h1>Hello :)</h1>
+  <p>
+    Небольшие примеры <code>Simple HTTP Server</code>:
+  </p>
+  <ul>
+    <li><a href="/pages/dialog.html">Directory Selection Dialog</a></li>
+    <li><a href="/pages/slow-response.html">Slow Response</a></li>
+  </ul>
+
+  <h3>Hello</h3>
+  <p><button data-btnHello>Hello</button></p>
+  <p class="dialog_out" data-resultHello></p>
+
+  <h3>Calculator</h3>
+  <p><input type="text" placeholder="value 1" data-value1 value="1"> Допустимые значения <code>[0-100,1000]</code></p>
+  <p><input type="text" placeholder="value 2" data-value2 value="0"> Допустимые значения <code>>=0</code></p>
+  <button data-operation="add">+</button>
+  <button data-operation="subtract">-</button>
+  <button data-operation="multiply">x</button>
+  <button data-operation="divide">/</button>
+  <p class="dialog_out" data-resultOut></p>
+
+  <h3>POST with <code>next</code></h3>
+  <p>
+    Запрос с телом <code>json</code> и перенаправлением маршрута.
+  </p>
+  <button data-btnHi="add">Hi</button>
+  <button data-btnHiJson="add">Hi | Json</button>
+  <p class="dialog_out" data-resultHi></p>
+
+  <h3>Routes | Зарегистрированные маршруты</h3>
+  <p>
+    Для второго статического маршрута <code>/src/???</code> примера нет, но можно открыть ссылку и посмотреть результат
+    в отдельном окне, например <a href="/src/index.ts" target="_blank">/src/index.ts</a>.
+  </p>
+  <p class="dialog_out" data-resultRoutes></p>
+
+  <script>
+    const resultHello = document.querySelector('[data-resultHello]')
+    const btnHello = document.querySelector('[data-btnHello]')
+    btnHello.addEventListener('click', async () => {
+      const res = await fetch('/hello')
+      resultHello.textContent = await res.text()
+    })
+
+    const value1 = document.querySelector('[data-value1]')
+    const value2 = document.querySelector('[data-value2]')
+    const resultOut = document.querySelector('[data-resultOut]')
+    const btnOp = document.querySelectorAll('[data-operation]')
+    for (const btn of btnOp) {
+      btn.addEventListener('click', async ({ target }) => {
+        const res = await fetch(`/calculator/${target.dataset.operation}/${value1.value}/${value2.value}`)
+        if (res.ok) {
+          const json = await res.json()
+          resultOut.className = json.ok ? 'dialog_out ok' : 'dialog_out error'
+          resultOut.textContent = json.ok ? json.data : json.error
+        }
+        else {
+          resultOut.className = 'dialog_out error'
+          resultOut.textContent = 'Вероятно, произошла ошибка.'
+        }
+      })
+    }
+
+    const btnHi = document.querySelector('[data-btnHi]')
+    const btnHiJson = document.querySelector('[data-btnHiJson]')
+    const resultHi = document.querySelector('[data-resultHi]')
+    async function hi (response) {
+      const res = await response
+      if (!res.ok) {
+        resultHi.textContent = 'Вероятно, произошла ошибка.'
+        return
+        const json = await res.json()
+        resultHi.textContent = json.ok ? json.data : json.error
+      }
+      const asJson = /^application\/json/i.test(res.headers.get('content-type') || '')
+      resultHi.textContent = asJson ? (await res.json()).message : (await res.text())
+    }
+    btnHi.addEventListener('click', () => {
+      hi(fetch('/api/example_post/x', { method: 'POST', body: 'Hi' }))
+    })
+    btnHiJson.addEventListener('click', () => {
+      hi(fetch('/api/example_post/x', { method: 'POST', body: '{"data": "Hi Json"}', headers: { 'content-type': 'application/json; charset="utf-8"', 'accept': 'application/json' } }))
+    })
+
+    const resultRoutes = document.querySelector('[data-resultRoutes]')
+    void async function () {
+      const res = await fetch('/__internal__/routelist', { method: 'POST' })
+      const routeList = (await res.json()).data
+      resultRoutes.textContent = ''
+      for (const { method, name, next, path } of routeList) {
+        const div = document.createElement('div')
+        const code = document.createElement('code')
+        const codePath = document.createElement('code')
+        div.style.padding = '4px'
+        code.style.display = 'block'
+        codePath.style.display = 'block'
+        code.textContent = `${method} | name:${name}, next:${next}`
+        codePath.textContent = path
+        div.append(code, codePath)
+        resultRoutes.append(div)
+      }
+    }()
+  </script>
+</body>
+
+</html>
