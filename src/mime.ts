@@ -1,7 +1,10 @@
 import { testStartDot, removeStartDot } from './utils.js'
 
+// .md https://www.rfc-editor.org/rfc/rfc7763
+
 const extTypeMap = {
   txt: 'text',
+  md: 'text',
   html: 'text',
   js: 'text',
   css: 'text',
@@ -17,6 +20,7 @@ const extTypeMap = {
 
 const extSubtypeMap = {
   txt: 'plain',
+  md: 'markdown',
   html: 'html',
   js: 'javascript',
   css: 'css',
@@ -32,6 +36,7 @@ const extSubtypeMap = {
 
 const extParamMap = {
   txt: 'charset="utf-8"',
+  md: 'charset="utf-8"',
   html: 'charset="utf-8"',
   js: 'charset="utf-8"',
   css: 'charset="utf-8"',
