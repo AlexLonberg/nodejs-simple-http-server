@@ -1,6 +1,9 @@
-import { join, extname } from 'node:path'
 import { type FileHandle, open } from 'node:fs/promises'
+import { type ReadStream, createReadStream } from 'node:fs'
+import { type Interface, createInterface } from 'node:readline'
+import { join, extname } from 'node:path'
 import { pipeline } from 'node:stream'
+import { EOL } from 'node:os'
 import { type Mime } from './mime.js'
 import { type Request } from './Request.js'
 import { type Response } from './Response.js'
@@ -125,6 +128,50 @@ async function sendFileSlow (path: string, response: Response, mime: Mime | stri
   }
 }
 
+/**
+ * Читает несколько строк тестового файла и возвращает фрагмент файла в `Buffer`.
+ *
+ * @param path Абсолютный путь к файлу.
+ * @param startLine Строка с которой следует начать чтение включительно.
+ * @param endLine Конечная строка включительно.
+ * @param delimiter Разделитель строк для записи в `Buffer` между прочитанными строками, например: `'\n'`.
+ *                  По умолчанию будет использован разделитель платформы `os.EOL`.
+ */
+async function sliceTextFile (path: string, startLine: number, endLine: number, delimiter?: undefined | null | string): Promise<Buffer> {
+  const chunks: Buffer[] = []
+  if (!delimiter) {
+    delimiter = EOL
+  }
+  // https://nodejs.org/api/readline.html#example-read-file-stream-line-by-line
+  let fileStream: ReadStream | undefined = undefined
+  let rl: Interface | undefined = undefined
+
+  try {
+    fileStream = createReadStream(path)
+    rl = createInterface({
+      input: fileStream,
+      crlfDelay: Infinity,
+    })
+    let currLine = 0
+    for await (const line of rl) {
+      if (++currLine < startLine) {
+        continue
+      }
+      chunks.push(Buffer.from(line, 'utf-8'))
+      if (currLine >= endLine) {
+        break
+      }
+      chunks.push(Buffer.from(delimiter, 'utf-8'))
+    }
+  }
+  finally {
+    rl?.close()
+    fileStream?.close()
+  }
+
+  return Buffer.concat(chunks)
+}
+
 class FsStatic {
   protected readonly _rootDir: string
   protected readonly _mime: Mime
@@ -168,5 +215,6 @@ class FsStatic {
 export {
   FsStatic,
   sendFile,
-  sendFileSlow
+  sendFileSlow,
+  sliceTextFile
 }

@@ -14,7 +14,8 @@ export {
 export {
   FsStatic,
   sendFile,
-  sendFileSlow
+  sendFileSlow,
+  sliceTextFile
 } from './fs.js'
 export {
   ExtMime,
