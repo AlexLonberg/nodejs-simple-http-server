@@ -82,7 +82,7 @@ server.get('/hello', (_reg: Request, res: Response) => {
   // Метод body() отправляет данные немедленно, но не завершает запрос, что позволяет добавить данные.
   res.body(' World')
   // Вызов bodyEnd('data') с данными, без предварительного вызова body(...), установит заголовок 'content-length'.
-  // В случае с несколикими вызовами body(...), заголовок 'content-length' не устанавливается.
+  // В случае с несколькими вызовами body(...), заголовок 'content-length' не устанавливается.
   res.bodyEnd(/* string | Buffer | null */)
   // Вызов body(...) после bodyEnd() не вызовет ошибку и будет проигнорирован.
   res.body('Some text')
@@ -112,7 +112,7 @@ server.getJson('/calculator/{operation:str:[add,subtract,multiply,divide]}/{valu
             ? (() => { throw new Error('Деление на ноль недопустимо.') })()
             : v1 / v2
   // Ошибки обработчика отлавливаются и, в случае если заголовки и данные еще не отправлены, возвращают подходящий ответ.
-  // На запрос '/calculator/divide/0' ответ будет иметь вид {ok: false, data: null, error: 'Деление на ноль недопустимо.'},
+  // На запрос '/calculator/divide/5/0' ответ будет иметь вид {ok: false, data: null, error: 'Деление на ноль недопустимо.'},
   // в том числе, клиент получит код ответа 200, установленный для этого маршрута в случае ошибки.
   res.bodySimpleJson(result)
 }, { failureCode: 200 })
@@ -145,7 +145,7 @@ server.postJson('/api/example_post', async (req: Request, res: Response) => {
   //
   // Заголовки установленные в этом обработчике полностью игнорируются и будут сброшены.
   res.headers.set('x-example-post-some', 'hello')
-  // ... но можно установить любые данные в пользовательскую переменную
+  // ... но можно установить любые данные в пользовательскую переменную и получить к ней доступ как в примере выше
   res.value = req.contentType === 'json' ? (await req.readJson<{ data: string }>()).data : (await req.readText())
 }, { next: 'example_post_name' })
 
@@ -176,6 +176,7 @@ server.getJson('/api/read_dir', async (_req: Request, res: Response) => {
 // Пример чтения файла. Сегменты автоматически декодируются(decodeURIComponent) и могут содержать специальные символы,
 // в данном примере переменная req.vars.path получит абсолютный путь к файлу "C:/your/path/file.extension".
 server.get('/api/get_file/{path:str}', (req: Request, res: Response) => {
+  // Не забываем - мы должны возвратить (void | Promise<void>)
   return sendFile(req.vars.path.value as string, res, server.mime)
 })
 
