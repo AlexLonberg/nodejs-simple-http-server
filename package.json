@@ -1,6 +1,6 @@
 {
   "name": "nodejs-simple-http-server",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "description": "Simple HTTP Server | NodeJS",
   "keywords": [
     "nodejs",
