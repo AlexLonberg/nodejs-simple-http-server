@@ -16,6 +16,7 @@ const extTypeMap = {
   bmp: 'image',
   gif: 'image',
   ico: 'image',
+  svg: 'image'
 }
 
 const extSubtypeMap = {
@@ -32,6 +33,7 @@ const extSubtypeMap = {
   bmp: 'bmp',
   gif: 'gif',
   ico: 'x-icon',
+  svg: 'svg+xml'
 }
 
 const extParamMap = {
@@ -47,7 +49,8 @@ const extParamMap = {
   webp: null,
   bmp: null,
   gif: null,
-  ico: null
+  ico: null,
+  svg: 'charset="utf-8"'
 }
 
 class ExtMime {
