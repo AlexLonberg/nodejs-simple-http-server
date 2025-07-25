@@ -1,12 +1,12 @@
 
 # Simple HTTP Server | NodeJS
 
-Очень простой HTTP-сервер без зависимостей на NodeJS-20:
+Очень простой HTTP-сервер-маршрутизатор без зависимостей на NodeJS-22:
 
 * Никаких `middleware` - только `GET/POST` с текстовым или JSON содержимым.
 * Ограниченный набор MIME-типов для основных типов файлов - html/css/js/image.
 
-Этот сервер может использоваться для примеров при разработке интерфейсов `VueJS/React` или простых приложений с обслуживанием статических файлов.
+Маршрутизатор может использоваться для примеров при разработке интерфейсов `VueJS/React` или простых приложений с обслуживанием статических файлов.
 
 ## Example
 
@@ -49,6 +49,25 @@ server.post('/bar/{value:int}/box', ...)
 * Выполняем сборку `npm run dist` или `dist_watch`.
 * Запускаем сервер(файл `demo/server.ts`) кнопкой в разделе `VSCode | Run and Debug (Launch TS File)` или `F5`.
 * Открываем страницу `http://localhost:7868/`.
+
+Использование с **WebSocketServer** [github.com/websockets/ws](https://github.com/websockets/ws)
+
+```ts
+import { createServer } from 'nodejs-simple-http-server'
+import { type RawData, WebSocketServer } from 'ws'
+
+const server = createServer({ noCache: true }) // Автоматически выбирается свободный порт
+const { hostname, port } = await server.listen()
+
+// Передаем ссылку на Node Server
+const wss = new WebSocketServer({ server: server.server, path: '/ws' })
+wss.on('connection', function connection (ws) {
+  ws.on('error', console.error.bind(console))
+  ws.on('message', function message (data: RawData, isBinary: boolean) {
+    ws.send(data.toString())
+  })
+})
+```
 
 ## Build
 

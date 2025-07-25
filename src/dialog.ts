@@ -3,7 +3,7 @@ import { lstatSync } from 'node:fs'
 import { SimpleJsonResponse } from './SimpleJsonResponse.js'
 import { messageFromError, forwardSlashes } from './utils.js'
 
-// TODO Функционал открытия файла в последнем использованном каталоге не реализована.
+// TODO Функционал открытия файла, с сохранением последнего использованного каталога, не реализован.
 function openDirectoryDialog (): Promise<SimpleJsonResponse<string>> {
   return new Promise((res) => {
     exec('PowerShell -Command "$folder = (New-Object -ComObject Shell.Application).BrowseForFolder(0, \'Select Folder\', 0); if ($folder) { $folder.Self.Path }"', (error, stdout, _stderr) => {

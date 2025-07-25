@@ -1,6 +1,6 @@
 {
   "name": "nodejs-simple-http-server",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Simple HTTP Server | NodeJS",
   "keywords": [
     "nodejs",
@@ -8,7 +8,7 @@
     "server"
   ],
   "engines": {
-    "node": "^20.10.0"
+    "node": "^22.13.1"
   },
   "author": "Alexander Lonberg <alexlonberg@gmail.com>",
   "repository": "https://github.com/AlexLonberg/nodejs-simple-http-server.git",

@@ -29,6 +29,7 @@ class SimpleHttpServer {
   protected readonly _options: TReadonlyOptions
   protected readonly _server: NodeServer
   protected _port = 0
+  protected _closed: boolean | Promise<void> = false
   readonly _internalRouter: Router
 
   private readonly _requestListener = async (req: IncomingMessage, res: ServerResponse) => {
@@ -72,6 +73,14 @@ class SimpleHttpServer {
 
   get port (): number {
     return this._port
+  }
+
+  get server (): NodeServer {
+    return this._server
+  }
+
+  get closed (): boolean {
+    return !!this._closed
   }
 
   private _errorHandler (response: Response, routeOptions: TReadonlyRouteOptions, e: any, acceptJson: boolean): void {
@@ -141,6 +150,23 @@ class SimpleHttpServer {
         ok({ hostname: address, port })
       })
     })
+  }
+
+  close (): void | Promise<void> {
+    if (!this._closed) {
+      let resolve: (() => void)
+      this._closed = new Promise((_resolve) => {
+        resolve = _resolve
+      })
+      this._server.close(() => {
+        this._closed = true
+        resolve?.()
+      })
+      return this._closed
+    }
+    if (this._closed !== true) {
+      return this._closed
+    }
   }
 }
 

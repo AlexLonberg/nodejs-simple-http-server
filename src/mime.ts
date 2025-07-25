@@ -108,7 +108,6 @@ class ExtMime {
 }
 
 class Mime {
-
   protected _extMap = new Map<string, ExtMime>()
 
   constructor() {
