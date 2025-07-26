@@ -11,10 +11,10 @@
   "include": [],
   "references": [
     {
-      "path": "./tsconfig.project.json"
+      "path": "./tsconfig.dist.json"
     },
     {
-      "path": "./tsconfig.dist.json"
+      "path": "./tsconfig.project.json"
     }
   ]
 }
