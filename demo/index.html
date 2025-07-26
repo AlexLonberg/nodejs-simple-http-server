@@ -12,11 +12,12 @@
 <body>
   <h1>Hello <img src="/assets/smile.svg" style="height: 1em; width: 1em;"></h1>
   <p>
-    Небольшие примеры <code>Simple HTTP Server</code>:
+    Примеры <code>Simple HTTP Server</code>:
   </p>
   <ul>
     <li><a href="/pages/dialog.html">Directory Selection Dialog</a></li>
     <li><a href="/pages/slow-response.html">Slow Response</a></li>
+    <li><a href="/pages/video.html">Video</a></li>
   </ul>
 
   <h3>Hello</h3>
@@ -62,14 +63,14 @@
     for (const btn of btnOp) {
       btn.addEventListener('click', async ({ target }) => {
         const res = await fetch(`/calculator/${target.dataset.operation}/${value1.value}/${value2.value}`)
+        const json = await res.json()
         if (res.ok) {
-          const json = await res.json()
-          resultOut.className = json.ok ? 'dialog_out ok' : 'dialog_out error'
-          resultOut.textContent = json.ok ? json.data : json.error
+          resultOut.className = Object.hasOwn(json, 'result') ? 'dialog_out ok' : 'dialog_out error'
+          resultOut.textContent = json.result
         }
         else {
           resultOut.className = 'dialog_out error'
-          resultOut.textContent = 'Вероятно, произошла ошибка.'
+          resultOut.textContent = json.error ?? 'Вероятно, произошла ошибка.'
         }
       })
     }
@@ -83,7 +84,7 @@
         resultHi.textContent = 'Вероятно, произошла ошибка.'
         return
         const json = await res.json()
-        resultHi.textContent = json.ok ? json.data : json.error
+        resultHi.textContent = json.ok ? json.value : json.error
       }
       const asJson = /^application\/json/i.test(res.headers.get('content-type') || '')
       resultHi.textContent = asJson ? (await res.json()).message : (await res.text())
@@ -98,7 +99,7 @@
     const resultRoutes = document.querySelector('[data-resultRoutes]')
     void async function () {
       const res = await fetch('/__internal__/routelist', { method: 'POST' })
-      const routeList = (await res.json()).data
+      const routeList = (await res.json())
       resultRoutes.textContent = ''
       for (const { method, name, next, path } of routeList) {
         const div = document.createElement('div')

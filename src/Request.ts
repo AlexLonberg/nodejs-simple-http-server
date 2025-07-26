@@ -14,6 +14,7 @@ class Request {
 
   constructor(incomingMessage: IncomingMessage, lower: boolean, hostname: string, port: null | number) {
     this._incomingMessage = incomingMessage
+    // NOTE на текущий момент тестовый сервер использует незащищенное соединение и ограничен http://
     this._url = new URL(incomingMessage.url && incomingMessage.url.length > 0 ? incomingMessage.url : '/', `http://${hostname}${port ? (':' + port.toString()) : ''}/`)
     this._requestPath = new RequestPath(this._url.pathname, lower)
   }
@@ -29,7 +30,8 @@ class Request {
    * Метод запроса https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods.
    */
   get method (): THttpMethod {
-    return this._incomingMessage.method as any
+    // @ts-expect-error в IncomingMessage это просто строка, но будем надеяться что там допустимые методы
+    return this._incomingMessage.method
   }
 
   /**
@@ -54,11 +56,11 @@ class Request {
   }
 
   /**
-   * Возвращает `json`, если в запросе присутствует заголовок `{'content-type': 'application/json*' }`, иначе `text`.
+   * Возвращает `true`, если в запросе присутствует заголовок `{'content-type': 'application/json*' }`.
    */
-  get contentType (): 'text' | 'json' {
+  get contentJson (): boolean {
     const value = ('content-type' in this._incomingMessage.headers) ? this._incomingMessage.headers['content-type'] : null
-    return value && /^application\/json/i.test(value) ? 'json' : 'text'
+    return value ? /^application\/json/i.test(value) : false
   }
 
   /**
@@ -131,7 +133,7 @@ class Request {
     if (this._bodyJson) {
       return this._bodyJson
     }
-    if (this.contentType !== 'json') {
+    if (!this.contentJson) {
       throw new Error('Запрос должен иметь заголовок {"content-type": "application/json"}')
     }
     const text = await this.readText()

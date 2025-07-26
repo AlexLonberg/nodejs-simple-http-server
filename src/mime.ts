@@ -1,57 +1,27 @@
-import { testStartDot, removeStartDot } from './utils.js'
+import { testStartDot_, removeStartDot_ } from './utils.js'
 
 // .md https://www.rfc-editor.org/rfc/rfc7763
 
-const extTypeMap = {
-  txt: 'text',
-  md: 'text',
-  html: 'text',
-  js: 'text',
-  css: 'text',
-  json: 'application',
-  jpg: 'image',
-  jpeg: 'image',
-  png: 'image',
-  webp: 'image',
-  bmp: 'image',
-  gif: 'image',
-  ico: 'image',
-  svg: 'image'
-}
-
-const extSubtypeMap = {
-  txt: 'plain',
-  md: 'markdown',
-  html: 'html',
-  js: 'javascript',
-  css: 'css',
-  json: 'json',
-  jpg: 'jpeg',
-  jpeg: 'jpeg',
-  png: 'png',
-  webp: 'webp',
-  bmp: 'bmp',
-  gif: 'gif',
-  ico: 'x-icon',
-  svg: 'svg+xml'
-}
-
-const extParamMap = {
-  txt: 'charset="utf-8"',
-  md: 'charset="utf-8"',
-  html: 'charset="utf-8"',
-  js: 'charset="utf-8"',
-  css: 'charset="utf-8"',
-  json: 'charset="utf-8"',
-  jpg: null,
-  jpeg: null,
-  png: null,
-  webp: null,
-  bmp: null,
-  gif: null,
-  ico: null,
-  svg: 'charset="utf-8"'
-}
+const _extMap = {
+  txt: { type: 'text', sub: 'plain', param: 'charset="utf-8"' },
+  md: { type: 'text', sub: 'markdown', param: 'charset="utf-8"' },
+  html: { type: 'text', sub: 'html', param: 'charset="utf-8"' },
+  js: { type: 'text', sub: 'javascript', param: 'charset="utf-8"' },
+  css: { type: 'text', sub: 'css', param: 'charset="utf-8"' },
+  json: { type: 'application', sub: 'json', param: 'charset="utf-8"' },
+  jpg: { type: 'image', sub: 'jpeg', param: null },
+  jpeg: { type: 'image', sub: 'jpeg', param: null },
+  png: { type: 'image', sub: 'png', param: null },
+  webp: { type: 'image', sub: 'webp', param: null },
+  bmp: { type: 'image', sub: 'bmp', param: null },
+  gif: { type: 'image', sub: 'gif', param: null },
+  ico: { type: 'image', sub: 'x-icon', param: null },
+  svg: { type: 'image', sub: 'svg+xml', param: 'charset="utf-8"' },
+  mp4: { type: 'video', sub: 'mp4', param: null },
+  '3gp': { type: 'video', sub: '3gpp', param: null },
+  m4v: { type: 'video', sub: 'mp4', param: null },
+  webm: { type: 'video', sub: 'webm', param: null }
+} as const
 
 class ExtMime {
   protected _ext: string
@@ -65,9 +35,9 @@ class ExtMime {
 
   constructor(ext: string, type: string, subtype: string, parameters?: undefined | null | string) {
     const extension = ext.trim().toLowerCase()
-    if (testStartDot(extension)) {
+    if (testStartDot_(extension)) {
       this._ext = extension
-      this._extWithoutDot = removeStartDot(extension)
+      this._extWithoutDot = removeStartDot_(extension)
     }
     else {
       this._ext = `.${extension}`
@@ -111,8 +81,8 @@ class Mime {
   protected _extMap = new Map<string, ExtMime>()
 
   constructor() {
-    for (const key of Object.keys(extTypeMap) as (keyof typeof extTypeMap)[]) {
-      this.register(key, extTypeMap[key], extSubtypeMap[key], extParamMap[key])
+    for (const key of Object.keys(_extMap) as (keyof typeof _extMap)[]) {
+      this.register(key, _extMap[key].type, _extMap[key].sub, _extMap[key].param)
     }
   }
 

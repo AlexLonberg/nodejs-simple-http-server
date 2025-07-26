@@ -33,7 +33,7 @@ class ResponseHeadersContentType {
 
 class ResponseHeaders {
   protected _readonly = false
-  protected readonly _map = new Map<string, string>
+  protected readonly _map = new Map<string, string>()
   protected readonly _defaultHeaders: Record<string, string>
   protected readonly _contentType: ResponseHeadersContentType
 

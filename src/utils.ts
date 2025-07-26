@@ -1,9 +1,5 @@
 import type { TTargetSegment } from './types.js'
 
-const _hasOwn = ('hasOwn' in Object && typeof Object.hasOwn === 'function')
-  ? Object.hasOwn
-  : (obj: any, key: string | number | symbol) => Object.prototype.hasOwnProperty.call(obj, key)
-
 const _allSingleSlash = /[\\/]{1}/g
 const _startSlash = /^[\\/]/
 const _endSlash = /[\\/]$/
@@ -94,7 +90,7 @@ function isObject<T> (value: T): value is (object & T) {
  */
 function hasOwn<T extends object, K extends string | number | symbol> (obj: T, key: K):
   obj is (T & { [_ in K]: K extends keyof T ? T[K] : never }) {
-  return _hasOwn(obj, key)
+  return Object.hasOwn(obj, key)
 }
 
 /**
@@ -113,10 +109,10 @@ function messageFromError (e: any, defaultMsg: undefined | null | string = 'Не
  * Есть ли у строки ведущий слеш.
  *
  * @example
- * testStartSlash('/foo')
+ * testStartSlash_('/foo')
  * // => true
  */
-function testStartSlash (str: string): boolean {
+function testStartSlash_ (str: string): boolean {
   return re.startSlash.test(str.trimStart())
 }
 
@@ -124,10 +120,10 @@ function testStartSlash (str: string): boolean {
  * Есть ли у строки завершающий слеш.
  *
  * @example
- * testEndSlash('foo/')
+ * testEndSlash_('foo/')
  * // => true
  */
-function testEndSlash (str: string): boolean {
+function testEndSlash_ (str: string): boolean {
   return re.endSlash.test(str.trimEnd())
 }
 
@@ -135,10 +131,10 @@ function testEndSlash (str: string): boolean {
  * Заменяет все слеши на правые.
  *
  * @example
- * forwardSlashes('/foo\\bar\\')
+ * forwardSlashes_('/foo\\bar\\')
  * // => '/foo//bar//'
  */
-function forwardSlashes (str: string): string {
+function forwardSlashes_ (str: string): string {
   return str.replace(re.allSingleSlash, '/')
 }
 
@@ -147,10 +143,10 @@ function forwardSlashes (str: string): string {
  * Эта функция не заменяет остальные слеши `\` на `/`.
  *
  * @example
- * trimSlashes('/foo\\bar\\ ')
+ * trimSlashes_('/foo\\bar\\ ')
  * // => 'foo\\bar'
  */
-function trimSlashes (str: string): string {
+function trimSlashes_ (str: string): string {
   return str.replace(re.startAndEndSpacesOrSlashes, '')
 }
 
@@ -158,11 +154,11 @@ function trimSlashes (str: string): string {
  * Разбивает строку по прямым/обратным слешам и пробельным символам одновременно удаляя первый и последний.
  *
  * @example
- * splitSlashes('/ foo bar \\box ')
+ * splitSlashes_('/ foo bar \\box ')
  * // => ['foo bar', 'box']
  */
-function splitSlashes (str: string): string[] {
-  const cleaned = trimSlashes(str)
+function splitSlashes_ (str: string): string[] {
+  const cleaned = trimSlashes_(str)
   return cleaned.length === 0 ? [] : cleaned.split(re.allSpacesOrSlashes)
 }
 
@@ -170,10 +166,10 @@ function splitSlashes (str: string): string[] {
  * Есть ли у строки ведущая точка.
  *
  * @example
- * testStartDot('.ext')
+ * testStartDot_('.ext')
  * // => true
  */
-function testStartDot (str: string): boolean {
+function testStartDot_ (str: string): boolean {
   return re.startDot.test(str)
 }
 
@@ -181,10 +177,10 @@ function testStartDot (str: string): boolean {
  * Удаление ведущей точки.
  *
  * @example
- * removeStartDot('.ext')
+ * removeStartDot_('.ext')
  * // => 'ext'
  */
-function removeStartDot (str: string): string {
+function removeStartDot_ (str: string): string {
   return str.replace(re.startDot, '')
 }
 
@@ -192,21 +188,24 @@ function removeStartDot (str: string): string {
  * Пытается преобразовать строку в неотрицательный Int.
  *
  * @example
- * tryParseNonnegativeInt('00123')
+ * tryParseNonnegativeInt_('00123')
  * // => 123
  */
-function tryParseNonnegativeInt (str: string): null | number {
+function tryParseNonnegativeInt_ (str: string): null | number {
   return re.numberInt.test(str) ? Number.parseInt(str, 10) : null
 }
 
 /**
- * Проверяет, является ли строка пути переменной, и разбирает.
+ * Проверяет, является ли сегмент пути переменной, и, в случае наличия скобок `{}`, нормализует к целевому сегменту.
+ *
+ * Сегмент может быть переменной с типом `string`, набором допустимых типов `[string, string]`, неотрицательным `uint`,
+ * набором допустимых `uint` или диапазоном `uint`.
  *
  * @example
- * tryParseVars('{value:int:[0-100,1000]}')
+ * tryParseVars_('{value:int:[0-100,1000]}')
  * // => {name:'value', type:'int', values:[[0,100], 1000]}
  */
-function tryParseVars (str: string): null | TTargetSegment {
+function tryParseVars_ (str: string): null | TTargetSegment {
   if (re.startAndEndBraces.test(str)) {
     str = str.replace(re.startOrEndBraces, '')
     const splitted = str.split(re.allColon).map((v) => v.trim()).filter((v) => v.length > 0)
@@ -214,52 +213,20 @@ function tryParseVars (str: string): null | TTargetSegment {
       return null
     }
     let values = splitted.length === 3
-      ? splitted[2].replace(re.startOrEndSquareBraces, '').split(re.allComma).map((v) => v.trim()).filter((v) => v.length > 0)
+      ? splitted[2]!.replace(re.startOrEndSquareBraces, '').split(re.allComma).map((v) => v.trim()).filter((v) => v.length > 0)
       : null
     if (values && splitted[1] === 'int') {
       values = values.map((v) => re.numberAndDash.test(v) ? v.split(re.dash, 2).map((x) => Number.parseInt(x)) : Number.parseInt(v)) as any
     }
-    return { name: splitted[0], type: splitted[1] as any, values }
+    return { name: splitted[0]!, type: splitted[1] as any, values }
   }
   return null
 }
 
 /**
- * Записывает/перезаписывает свойства объекта `target` свойствами `other`.
- * Значения `undefined` и/или ключи `skip` игнорируются. Значения `null` игнорируются, если ключи явно не перечислены в массиве `keyNull`.
- *
- * @returns Возвращает аргумент `target`.
- */
-function mergeRecord<T extends Record<string, any>, X extends Record<string, any>> (target: T, other: X, skip: readonly (keyof X)[], keyNull: readonly (keyof X)[]): T & X {
-  for (const [key, value] of Object.entries(other)) {
-    if (skip.includes(key) || (typeof value === 'undefined') || (value === null && !keyNull.includes(key))) {
-      continue
-    }
-    // @ts-ignore
-    target[key] = other[key]
-  }
-  return target as any
-}
-
-/**
- * Записывает/перезаписывает свойства объекта `target` свойствами `rawHeaders`, приводя все ключи к `toLowerCase()`.
- *
- * @returns Возвращает аргумент `target`.
- */
-function mergeHeaders (target: Record<string, string>, ...rawHeaders: Record<string, string>[]): Record<string, string> {
-  for (const item of rawHeaders) {
-    for (const [key, value] of Object.entries(item)) {
-      target[key.toLowerCase()] = value
-    }
-  }
-  return target
-}
-
-/**
  * Асинхронная пауза на основе `setTimeout`.
  *
- * @param ms
- * @returns
+ * @param ms Будет передано в `setTimeout(s, ms)`.
  */
 function asyncPause (ms = 0): Promise<void> {
   return new Promise((s) => setTimeout(s, ms))
@@ -269,16 +236,14 @@ export {
   isObject,
   hasOwn,
   messageFromError,
-  testStartSlash,
-  testEndSlash,
-  forwardSlashes,
-  trimSlashes,
-  splitSlashes,
-  testStartDot,
-  removeStartDot,
-  tryParseNonnegativeInt,
-  tryParseVars,
-  mergeRecord,
-  mergeHeaders,
+  testStartSlash_,
+  testEndSlash_,
+  forwardSlashes_,
+  trimSlashes_,
+  splitSlashes_,
+  testStartDot_,
+  removeStartDot_,
+  tryParseNonnegativeInt_,
+  tryParseVars_,
   asyncPause
 }

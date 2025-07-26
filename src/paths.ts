@@ -1,13 +1,23 @@
-import type { TSegment, TTargetSegment, TRequestSegment } from './types.js'
+import type { TSegment, TTargetSegment } from './types.js'
 import {
-  testStartSlash,
-  testEndSlash,
-  splitSlashes,
-  tryParseNonnegativeInt,
-  tryParseVars
+  testStartSlash_,
+  testEndSlash_,
+  splitSlashes_,
+  tryParseNonnegativeInt_,
+  tryParseVars_
 } from './utils.js'
 
-function testRange (value: number, range: readonly (readonly [number, number] | number)[]): boolean {
+/**
+ * Сегмент пути запроса. Часть пути запроса.
+ */
+type _TRequestSegment =
+  { readonly value: string } &
+  (
+    { readonly maybeNumber: false, readonly asNumber: null } |
+    { readonly maybeNumber: true, readonly asNumber: number }
+  )
+
+function _testRange (value: number, range: readonly (readonly [number, number] | number)[]): boolean {
   for (const item of range) {
     if (typeof item === 'number') {
       if (value === item) {
@@ -23,26 +33,22 @@ function testRange (value: number, range: readonly (readonly [number, number] | 
   return false
 }
 
-function testStr (value: string, values: readonly string[]): boolean {
-  for (const item of values) {
-    if (value === item) {
-      return true
-    }
-  }
-  return false
-}
-
 abstract class PathBase {
   protected readonly _path: string
   protected readonly _startSlash: boolean
   protected readonly _endSlash: boolean
   protected readonly _splitted: readonly string[]
 
+  /**
+   * @param rawPath Строка пути
+   * @param decode  Если это запрос, то декодируем
+   * @param lower   Нужно ли привести сегменты пути к `toLowerCase()`.
+   */
   constructor(rawPath: string, decode: boolean, lower: boolean) {
     this._path = rawPath.trim()
-    this._startSlash = testStartSlash(this._path)
-    this._endSlash = testEndSlash(this._path)
-    this._splitted = splitSlashes(this._path).map((v) => {
+    this._startSlash = testStartSlash_(this._path)
+    this._endSlash = testEndSlash_(this._path)
+    this._splitted = splitSlashes_(this._path).map((v) => {
       if (decode) {
         v = decodeURIComponent(v)
       }
@@ -68,28 +74,35 @@ abstract class PathBase {
 }
 
 /**
- * Запрошенный путь.
+ * Путь запроса.
  */
 class RequestPath extends PathBase {
-  readonly _internalSegments: readonly TRequestSegment[] = []
+  readonly _internalSegments: readonly _TRequestSegment[] = []
   private _relativePath = ''
 
   constructor(rawPath: string, lower: boolean) {
     super(rawPath, true, lower)
+    // Сразу определим могут ли здесь быть переменные для uint
     for (let i = 0; i < this._splitted.length; ++i) {
-      const value = this._splitted[i]
-      const asNumber = tryParseNonnegativeInt(value)
-      // @ts-ignore
+      const value = this._splitted[i]!
+      const asNumber = tryParseNonnegativeInt_(value)
+      // @ts-expect-error
       this._internalSegments[i] = { value, asNumber, maybeNumber: asNumber !== null }
     }
   }
 
+  /**
+   * Внутренний метод используемый маршрутизатором, для отделения относительного пути совпадающего маршрута.
+   * Смотри свойство {@link relativePath}.
+   *
+   * @param length Количество сегментов маршрута.
+   */
   _internalRoutePathLength (length: number): void {
     this._relativePath = this._splitted.slice(length).join('/')
   }
 
   /**
-   * Массив декодированных сегментов пути.
+   * Массив сегментов пути.
    *
    * Warning: Не изменяйте полученный массив, последний не копируется и передается ссылкой на внутреннее свойство.
    */
@@ -100,7 +113,7 @@ class RequestPath extends PathBase {
   /**
    * Путь без начальных сегментов маршрута. Это свойство не имеет начального и конечного слешей, даже если они есть в пути.
    *
-   * Например: `route:'/static'` + `path:'/static/js/app.js'` => `js/app.js`
+   * Пример: `route:'/static'` + `path:'/static/js/app.js'` => `js/app.js`
    */
   get relativePath (): string {
     return this._relativePath
@@ -108,25 +121,31 @@ class RequestPath extends PathBase {
 }
 
 /**
- * Целевой путь.
+ * Целевой путь маршрута.
  */
 class TargetPath extends PathBase {
   protected readonly _segments: readonly TTargetSegment[] = []
 
   constructor(rawPath: string, lower: boolean) {
     super(rawPath, false, false)
+    // Получаем сегменты и возможные варианты переменных в путях
     for (const item of this._splitted) {
-      const s = tryParseVars(item) ?? { name: (lower ? item.toLowerCase() : item), type: 'path', values: null }
+      const s = tryParseVars_(item) ?? { name: (lower ? item.toLowerCase() : item), type: 'path', values: null }
       if (s.type === 'str' && s.values && lower) {
         for (let i = 0; i < s.values.length; ++i) {
-          s.values[i] = s.values[i].toLowerCase()
+          s.values[i] = s.values[i]!.toLowerCase()
         }
       }
-      // @ts-ignore
+      // @ts-expect-error
       this._segments.push(s)
     }
   }
 
+  /**
+   * Тестирует путь запроса на соответствие маршруту и, в случае успеха, возвращает сегменты пути запроса.
+   *
+   * @param path
+   */
   startWith (path: RequestPath): null | (readonly TSegment[]) {
     if (this.length > path.length || (this.length === path.length && this.endSlash && !path.endSlash)) {
       return null
@@ -135,20 +154,23 @@ class TargetPath extends PathBase {
     const result: TSegment[] = []
 
     for (let i = 0; i < this._segments.length; ++i) {
-      const self = this._segments[i]
-      const other = path._internalSegments[i]
+      const self = this._segments[i]!
+      const other = path._internalSegments[i]!
+      // Если у маршрута установлен int и сегмент похож на число
       if (self.type === 'int') {
-        if (!other.maybeNumber || (self.values && !testRange(other.asNumber, self.values))) {
+        if (!other.maybeNumber || (self.values && !_testRange(other.asNumber, self.values))) {
           return null
         }
         result[i] = { type: 'int', value: other.asNumber, name: self.name }
       }
+      // ... Если у маршрута установлена строка и она подходит
       else if (self.type === 'str') {
-        if (self.values && !testStr(other.value, self.values)) {
+        if (self.values && !self.values.includes(other.value)) {
           return null
         }
         result[i] = { type: 'str', value: other.value, name: self.name }
       }
+      // ... иначе это просто путь который должен подойти
       else {
         if (self.name !== other.value) {
           return null

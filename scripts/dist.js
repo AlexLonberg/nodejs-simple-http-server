@@ -4,7 +4,21 @@ import { mkdirSync, readdirSync, unlinkSync, copyFileSync, readFileSync, writeFi
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const dist = join(root, 'dist')
-const keys = ['name', 'version', 'description', 'keywords', 'engines', 'author', 'repository', 'homepage', 'license', 'type', 'main', 'types', 'exports']
+const keys = [
+  'name',
+  'version',
+  'description',
+  'keywords',
+  'engines',
+  'author',
+  'repository',
+  'homepage',
+  'license',
+  'type',
+  'main',
+  'types',
+  'exports'
+]
 
 mkdirSync(dist, { recursive: true })
 
@@ -22,6 +36,12 @@ for (const [k, v] of Object.entries(packageSrc)) {
   if (keys.includes(k)) {
     packageDist[k] = v
   }
+}
+packageDist.main = './index.js'
+packageDist.types = './index.d.ts'
+packageDist.exports['.'] = {
+  import: './index.js',
+  types: './index.d.ts'
 }
 
 writeFileSync(join(dist, 'package.json'), JSON.stringify(packageDist, null, 2), { encoding: 'utf-8' })

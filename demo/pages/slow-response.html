@@ -17,7 +17,7 @@
     Симуляция очень медленного ответа сервера.
   </p>
   <p>
-    <input type="text" placeholder="time in seconds, default:1" data-time value="">
+    <input type="text" placeholder="time in seconds, default:5" data-time value="">
   </p>
   <p>
     Выбор и чтение каталога <button data-btnGetImages>Get Images</button> с изображениями.
@@ -49,7 +49,7 @@
           time = v
         }
         else {
-          inTime.value = '1'
+          inTime.value = '5'
         }
       } catch (_e) { /**/ }
 
@@ -64,14 +64,14 @@
         resultOutReadDir.textContent = json.error
         return
       }
-      if (json.data.files.length === 0) {
-        resultOutReadDir.innerHTML = json.data.dir + '<br><br>' + 'files:0'
+      if (json.value.files.length === 0) {
+        resultOutReadDir.innerHTML = json.value.dir + '<br><br>' + 'files:0'
         return
       }
 
-      resultOutReadDir.textContent = json.data.dir
-      for (const name of json.data.files) {
-        const path = encodeURIComponent(`${json.data.dir}/${name}`)
+      resultOutReadDir.textContent = json.value.dir
+      for (const name of json.value.files) {
+        const path = encodeURIComponent(`${json.value.dir}/${name}`)
         const href = `/api/get_file/${time}/${path}`
         addImage(name, href)
       }

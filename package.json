@@ -1,6 +1,6 @@
 {
   "name": "nodejs-simple-http-server",
-  "version": "0.0.5",
+  "version": "0.1.0",
   "description": "Simple HTTP Server | NodeJS",
   "keywords": [
     "nodejs",
@@ -15,30 +15,27 @@
   "homepage": "https://github.com/AlexLonberg/nodejs-simple-http-server",
   "license": "MIT",
   "scripts": {
-    "test": "npx jest --coverage --config ./jest.config.ts",
-    "predist": "node ./scripts/prebuild.js",
-    "dist": "tsc --project tsconfig.dist.json",
-    "dist_watch": "tsc --project tsconfig.dist.json --watch --noEmit false --noEmitOnError false --declaration --declarationMap"
+    "test": "vitest run --coverage --config vitest.config.ts",
+    "predist": "node ./scripts/dist.js",
+    "dist": "tsc --project tsconfig.dist.json"
   },
   "devDependencies": {
-    "@eslint/js": "^9.0.0",
-    "@stylistic/eslint-plugin": "^1.7.0",
-    "@types/jest": "^29.5.12",
-    "eslint": "^9.0.0",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.1.2",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.4.5",
-    "typescript-eslint": "^7.6.0"
+    "@eslint/js": "^9.32.0",
+    "@stylistic/eslint-plugin": "^5.2.2",
+    "@types/eslint__js": "^8.42.3",
+    "@types/node": "^22.13.14",
+    "@vitest/coverage-v8": "^3.2.4",
+    "eslint": "^9.32.0",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.38.0",
+    "vitest": "^3.2.4"
   },
   "type": "module",
-  "main": "./index.ts",
-  "types": "./index.d.ts",
+  "private": true,
+  "main": "./src/index.ts",
   "exports": {
     ".": {
-      "import": "./index.js",
-      "types": "./index.d.ts"
+      "import": "./src/index.ts"
     }
-  },
-  "private": true
+  }
 }

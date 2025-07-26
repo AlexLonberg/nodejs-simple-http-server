@@ -1,21 +1,22 @@
-export type {
-  TAllowedMethod,
-  THttpMethod,
-  TSimpleJsonResponse,
-  TVars,
-  TSegment,
-  TTargetSegment,
-  TRequestSegment,
-  UMutable
+export {
+  type TAllowedMethod,
+  type THttpMethod,
+  type TVars,
+  type TSegment,
+  type TTargetSegment,
+  type UMutable,
+  type TRequestHandler
 } from './types.js'
 export {
-  openDirectoryDialog
+  openDirectoryDialog,
+  openFileDialog
 } from './dialog.js'
 export {
-  FsStatic,
   sendFile,
   sendFileSlow,
-  sliceTextFile
+  sliceTextFile,
+  sendStreamableFile,
+  FsStatic
 } from './fs.js'
 export {
   ExtMime,
@@ -46,16 +47,9 @@ export {
   Router
 } from './Router.js'
 export {
-  type TRequestHandler,
   SimpleHttpServer,
   createServer
 } from './server.js'
-export {
-  SimpleJsonResponse
-} from './SimpleJsonResponse.js'
-export {
-  statusCodes
-} from './statusCodes.js'
 export {
   isObject,
   hasOwn,

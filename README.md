@@ -10,7 +10,7 @@
 
 ## Example
 
-Предварительно [собираем](#build) и добавляем зависимость.
+    npm i -D nodejs-simple-http-server
 
 ```js
 import { createServer } from 'nodejs-simple-http-server'
@@ -44,9 +44,8 @@ server.post('/bar/{value:int}/box', ...)
     4. '/one'
 
 Расширенный пример с описанием в файле [demo/server.ts](demo/server.ts).
-Для запуска должен быть установлен `"ts-node": "^10.9.2"`.
 
-* Выполняем сборку `npm run dist` или `dist_watch`.
+* Устанавливаем Dev зависимости `npm i` и `npm run dist`.
 * Запускаем сервер(файл `demo/server.ts`) кнопкой в разделе `VSCode | Run and Debug (Launch TS File)` или `F5`.
 * Открываем страницу `http://localhost:7868/`.
 
@@ -67,22 +66,4 @@ wss.on('connection', function connection (ws) {
     ws.send(data.toString())
   })
 })
-```
-
-## Build
-
-Выполняем команду:
-
-    npm run dist
-
-После сборки каталог `dist` можно использовать как пакет в TS/JS-проекте, вызываем в корне целевого проекта что-то вроде:
-
-    npm i -D C:/.../nodejs-simple-http-server/dist
-
-... в `package.json` будет добавлена запись:
-
-```json
-"devDependencies": {
-  "nodejs-simple-http-server": "file:../../nodejs-simple-http-server/dist"
-}
 ```

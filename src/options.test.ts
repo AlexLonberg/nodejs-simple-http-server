@@ -1,11 +1,12 @@
+import { test, expect } from 'vitest'
 import type { TAllowedMethod } from './types.js'
 import {
   type TOptions,
   type TRouteOptions,
   type TReadonlyOptions,
   type TReadonlyRouteOptions,
-  parseOptions,
-  parseRouteOptions
+  parseOptions_,
+  parseRouteOptions_
 } from './options.js'
 
 const options: TReadonlyOptions = {
@@ -41,16 +42,29 @@ function copyRouteOptions (): TReadonlyRouteOptions {
   return opts
 }
 
-test('parseOptions', () => {
-  expect(parseOptions()).toStrictEqual(copyOptions())
-  expect(parseOptions({ noCache: true })).toStrictEqual({ ...copyOptions(), headers: { 'cache-control': 'no-store, no-cache, max-age=0' } })
+test('parseOptions_', () => {
+  expect(parseOptions_()).toStrictEqual(copyOptions())
+  expect(parseOptions_({ noCache: true })).toStrictEqual({ ...copyOptions(), headers: { 'cache-control': 'no-store, no-cache, max-age=0' } })
   const customOptions: TOptions = { hostname: '127.0.0.1', port: 7860, failureCode: { code: 123, text: 'some' } }
-  expect(parseOptions(customOptions)).toStrictEqual({ ...copyOptions(), hostname: '127.0.0.1', port: 7860, failureCode: 123, failureText: 'some' })
+  expect(parseOptions_(customOptions)).toStrictEqual({
+    ...copyOptions(),
+    hostname: '127.0.0.1',
+    port: 7860,
+    failureCode: 123,
+    failureText: 'some'
+  })
 })
 
-test('parseRouteOptions', () => {
-  expect(parseRouteOptions()).toStrictEqual(copyRouteOptions())
-  const customOptions1: TRouteOptions = { noCache: true, next: true }
-  const customOptions2: TRouteOptions = { failureCode: { code: 123, text: 'some' }, next: 'foo' }
-  expect(parseRouteOptions(customOptions1, customOptions2)).toStrictEqual({ ...copyRouteOptions(), headers: { 'cache-control': 'no-store, no-cache, max-age=0' }, failureCode: 123, failureText: 'some', next: 'foo' })
+test('parseRouteOptions_', () => {
+  expect(parseRouteOptions_()).toStrictEqual(copyRouteOptions())
+  const customOptions1: TRouteOptions = { noCache: true, next: true, method: 'GET' }
+  const customOptions2: TRouteOptions = { headers: { 'X-Headers': 'X-Value' }, failureCode: { code: 123, text: 'some' }, next: 'foo', method: null }
+  expect(parseRouteOptions_(customOptions1, customOptions2)).toStrictEqual({
+    ...copyRouteOptions(),
+    method: null, // сброшен
+    headers: { 'cache-control': 'no-store, no-cache, max-age=0', 'x-headers': 'X-Value' },
+    failureCode: 123,
+    failureText: 'some',
+    next: 'foo'
+  })
 })

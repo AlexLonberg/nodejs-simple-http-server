@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="/assets/style.css" rel="stylesheet">
+  <title>Video</title>
+  <style>
+    [data-outSelectDir] {
+      margin-bottom: 1em;
+    }
+
+    [data-outSelectDir]>div {
+      padding: 0.4em;
+      cursor: pointer;
+    }
+
+    [data-outSelectDir]>div:hover {
+      background-color: #607d8b26;
+    }
+  </style>
+</head>
+
+<body>
+  <a href="/">Home</a>
+  <h1>Video</h1>
+  <p>
+    Нажмите на эту кнопку <button data-btnSelectDir>Select Folder</button>,
+    дождитесь открытия диалога и выберите каталог с видеофайлами.
+    Файлы должны быть в поддерживаемых форматах браузером <code>mp4, </code>.
+  </p>
+  <div>Выберите один из файлов:</div>
+  <div data-outSelectDir></div>
+  <div>
+    <video src="" data-player controls autoplay muted style="width: 400px;"></video>
+  </div>
+  </p>
+  <script>
+    const btnSelectDir = document.querySelector('[data-btnSelectDir]')
+    const outSelectDir = document.querySelector('[data-outSelectDir]')
+    const player = document.querySelector('[data-player]')
+
+    btnSelectDir.addEventListener('click', async () => {
+      const res = await fetch('/api/read_dir_video')
+      if (!res.ok) {
+        outSelectDir.textContent = 'Каталог не выбран или произошла ошибка.'
+        return
+      }
+      const json = await res.json()
+      if (json.value?.files && json.value.files.length > 0) {
+        outSelectDir.textContent = ''
+        for (const name of json.value.files) {
+          const item = document.createElement('div')
+          item.textContent = name
+          const full = encodeURIComponent(`${json.value.dir}/${name}`)
+          item.addEventListener('click', () => {
+            player.src = `/video/${full}`
+          })
+          outSelectDir.appendChild(item)
+        }
+      }
+      else {
+        outSelectDir.textContent = json.error ?? 'Нет поддерживаемого формата'
+      }
+    })
+  </script>
+</body>
+
+</html>

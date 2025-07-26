@@ -1,9 +1,7 @@
 import { type ServerResponse } from 'node:http'
 import { Buffer } from 'node:buffer'
-import { type TReadonlyRouteOptions } from './options.js'
-import { SimpleJsonResponse } from './SimpleJsonResponse.js'
+import { type TReadonlyRouteOptions, getOrDefaultStatusText_ } from './options.js'
 import { ResponseHeaders } from './ResponseHeaders.js'
-import { statusCodes } from './statusCodes.js'
 
 class Response {
   /**
@@ -17,7 +15,7 @@ class Response {
    * + 1000 - завершено
    */
   _internalSent = 0b0000
-  private readonly _queue: Promise<void>[] = []
+  _internalQueue = Promise.resolve()
   protected _code = 200
   readonly _serverResponse: ServerResponse
   protected readonly _routeOptions: TReadonlyRouteOptions
@@ -53,56 +51,33 @@ class Response {
       return
     }
     this._internalSent |= 0b0010
-    let ok: (() => void)
-    const p = new Promise<void>((resolve) => ok = resolve)
-    const beforeIndex = this._queue.push(p) - 2
-    if (beforeIndex >= 0) {
-      await this._queue[beforeIndex]
-    }
+    const previous = this._internalQueue
+    let finalize!: (() => any)
+    this._internalQueue = new Promise((resolve) => finalize = resolve)
+    await previous
     this._serverResponse.write(value, (e) => {
       if (e) {
         console.error(e)
       }
-      this._queue.shift()
-      ok()
+      finalize()
     })
-    return p
+    return this._internalQueue
   }
 
   async _internalEnd (): Promise<void> {
-    const beforeIndex = this._queue.length - 1
     if (this._internalSent & 0b0100) {
-      if (beforeIndex >= 0) {
-        return this._queue[beforeIndex]
-      }
-      return
+      return this._internalQueue
     }
     this._internalSent |= 0b0100
-    let ok: (() => void)
-    const p = new Promise<void>((resolve) => ok = resolve)
-    this._queue.push(p)
-    if (beforeIndex >= 0) {
-      await this._queue[beforeIndex]
-    }
+    const previous = this._internalQueue
+    let finalize!: (() => any)
+    this._internalQueue = new Promise((resolve) => finalize = resolve)
+    await previous
     this._serverResponse.end(() => {
       this._internalSent |= 0b1000
-      this._queue.splice(0)
-      ok()
+      finalize()
     })
-    return p
-  }
-
-  protected sendJson (value: object): void | Promise<void> {
-    if (this._internalSent & 0b0001) {
-      return
-    }
-    const text = JSON.stringify(value)
-    const buff = Buffer.from(text, 'utf-8')
-    this._headers.contentType('application/json; charset="utf-8"', true)
-    this._headers.contentLength(buff.byteLength, true)
-    this.sendHeaders()
-    this.appendBody(buff)
-    return this._internalEnd()
+    return this._internalQueue
   }
 
   /**
@@ -149,64 +124,24 @@ class Response {
    * установлен, по умолчанию устанавливается `application/json`.
    */
   bodyJson (value: object): void | Promise<void> {
-    return this.sendJson(value instanceof SimpleJsonResponse ? value.toObject() : value)
-  }
-
-  /**
-   * Отправляет заголовки, заворачивает `value` в `SimpleJsonResponse` и завершает запрос.
-   *
-   * @param value Любое значение.
-   */
-  bodySimpleJson (value: any): void | Promise<void> {
-    return this.sendJson(SimpleJsonResponse.result(value).toObject())
-  }
-
-  /**
-   * Завершает запрос ошибкой. Если заголовок `content-type` не установлен, по умолчанию устанавливается в `text/plain`.
-   *
-   * @param code Заменить статус по умолчанию для этого обработчика.
-   * @param text Заменить текст статуса по умолчанию для этого обработчика.
-   */
-  bodyFail (code?: undefined | null | number, text?: undefined | null | string): void | Promise<void> {
-    if (this._internalSent & 0b0001) {
+    if (this._internalSent & 0b0010) {
       return
     }
-    if (code) {
-      this._code = code
-    }
-    else {
-      code = this._code
-    }
-    this._headers.setIfNot('content-type', 'text/plain; charset="utf-8"')
-    return this.bodyEnd(text ?? statusCodes.getOrDefault(code))
-  }
-
-  /**
-   * Завершает запрос ошибкой и отправляет ответ в виде `SimpleJsonResponse`. Для запроса из приложения ожидающего JSON
-   * может подойти `code:200`, а ошибка определяется по содержимому.
-   *
-   * @param code
-   * @param text
-   */
-  bodyJsonFail (code?: undefined | null | number, text?: undefined | null | string): void | Promise<void> {
-    if (code) {
-      this._code = code
-    }
-    else {
-      code = this._code
-    }
-    return this.sendJson(SimpleJsonResponse.error(text ?? statusCodes.getOrDefault(code)).toObject())
+    const text = JSON.stringify(value)
+    const buff = Buffer.from(text, 'utf-8')
+    this._headers.contentType('application/json; charset="utf-8"', true)
+    this._headers.contentLength(buff.byteLength, true)
+    this.sendHeaders()
+    this.appendBody(buff)
+    return this._internalEnd()
   }
 
   /**
    * Явно завершает запрос. После вызова этого метода повторное добавление данных невозможно.
    */
-  bodyEnd (value?: undefined | null | string | Buffer): void | Promise<void> {
+  bodyEnd (value?: undefined | null | string | Buffer): Promise<void> {
     if (this._internalSent & 0b0100) {
-      if (this._queue.length > 0) {
-        return this._queue[this._queue.length - 1]
-      }
-      return
+      return this._internalQueue
     }
     const notHeadersSent = !(this._internalSent & 0b0001)
     if (value) {
@@ -224,6 +159,22 @@ class Response {
       this.sendHeaders()
     }
     return this._internalEnd()
+  }
+
+  bodyFail (code: number, text?: undefined | null | string): void | Promise<void> {
+    this._internalSent = 0b1111
+    if (this._serverResponse.headersSent) {
+      this._serverResponse.destroy()
+    }
+    else {
+      let fail!: (() => any)
+      const promise = new Promise<void>((resolve) => fail = resolve)
+      const message = text ?? getOrDefaultStatusText_(code, 'Internal Server Error')
+      this._code = code
+      this._serverResponse.writeHead(code, { 'content-type': 'text/plain; charset="utf-8"', 'content-length': Buffer.byteLength(message, 'utf-8') })
+      this._serverResponse.end(message, fail)
+      return promise
+    }
   }
 }
 

@@ -18,6 +18,8 @@
     дождитесь открытия диалога и выберите каталог.
   </p>
   <p class="dialog_out" data-outSelectDir></p>
+  <p>Выбрать файл <button data-btnSelectFile>Select File</button></p>
+  <p class="dialog_out" data-outSelectFile></p>
   <p>
     Выбор и чтение каталога <button data-btnReadDir>Read Dir</button>.
     Этот пример отобразит только <code>image</code> файлы.
@@ -26,7 +28,9 @@
   <p class="dialog_out single" data-resultOutImage></p>
   <script>
     const btnSelectDir = document.querySelector('[data-btnSelectDir]')
+    const btnSelectFile = document.querySelector('[data-btnSelectFile]')
     const outSelectDir = document.querySelector('[data-outSelectDir]')
+    const outSelectFile = document.querySelector('[data-outSelectFile]')
 
     const btnReadDir = document.querySelector('[data-btnReadDir]')
     const resultOutReadDir = document.querySelector('[data-resultOutReadDir]')
@@ -36,10 +40,21 @@
       const res = await fetch('/api/select_dir')
       if (res.ok) {
         const json = await res.json()
-        outSelectDir.textContent = json.ok ? json.data : json.error
+        outSelectDir.textContent = json.ok ? json.value : json.error
       }
       else {
         outSelectDir.textContent = 'Каталог не выбран или произошла ошибка.'
+      }
+    })
+
+    btnSelectFile.addEventListener('click', async () => {
+      const res = await fetch('/api/select_file')
+      if (res.ok) {
+        const json = await res.json()
+        outSelectFile.textContent = json.ok ? json.value : json.error
+      }
+      else {
+        outSelectFile.textContent = 'Файл не выбран или произошла ошибка.'
       }
     })
 
@@ -64,17 +79,17 @@
         resultOutReadDir.textContent = json.error
         return
       }
-      if (json.data.files.length === 0) {
-        resultOutReadDir.innerHTML = json.data.dir + '<br><br>' + 'files:0'
+      if (json.value.files.length === 0) {
+        resultOutReadDir.innerHTML = json.value.dir + '<br><br>' + 'files:0'
         return
       }
 
-      resultOutReadDir.innerHTML = json.data.dir
+      resultOutReadDir.innerHTML = json.value.dir
       const ul = document.createElement('ul')
-      for (const item of json.data.files) {
+      for (const item of json.value.files) {
         const li = document.createElement('li')
         const a = document.createElement('a')
-        const path = encodeURIComponent(`${json.data.dir}/${item}`)
+        const path = encodeURIComponent(`${json.value.dir}/${item}`)
         const href = `/api/get_file/${path}`
         a.href = href
         a.textContent = item

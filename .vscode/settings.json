@@ -12,7 +12,7 @@
     "dist": true,
     "**/*.json": true,
     "eslint.config.js": true,
-    "jest.config.ts": true,
+    "vitest.config.ts": true,
     "LICENSE.md": true,
   },
   "googleSearchContextMenu.items": {
@@ -24,6 +24,7 @@
     }
   },
   "cSpell.words": [],
+  "editor.snippetSuggestions": "inline",
   "[markdown]": {
     "editor.rulers": [
       88 // code
@@ -33,12 +34,13 @@
     "editor.rulers": [
       88,
       120
-    ]
+    ],
   },
   // Запускает eslint с системной версией NodeJS
   "eslint.runtime": "node",
   "eslint.useESLintClass": true,
-  "eslint.codeActionsOnSave.mode": "all",
+  "eslint.codeActionsOnSave.mode": "problems",
+  // "eslint.codeActionsOnSave.mode": "all",
   // Отключаем действия для правил удаляющих код при форматировании. Если выше включен mode:"problems" - эта настройка игнорируется.
   // !rule - off
   // *     - on
@@ -54,17 +56,5 @@
     // "source.organizeImports": "explicit",
     // "source.sortImports": "explicit"
   },
-  "typescript.tsdk": "node_modules\\typescript\\lib",
-  "coverage-gutters.coverageBaseDir": ".temp/coverage",
-  "coverage-gutters.coverageFileNames": [
-    "lcov.info"
-  ],
-  // TODO У расширения Jest проблема использования `coverage:true` - стандартный "jest.coverageFormatter" не отключается,
-  // а `coverage:false` не дает возможности генерировать `lcov.info` и использовать его с расширением `ryanluker.vscode-coverage-gutters`.
-  // Таким образом, запуск тестов с покрытием возможен только отдельной командой и на текущие момент запусткается через `npx`.
-  "jest.runMode": {
-    "type": "on-demand",
-    "coverage": false,
-    "showInlineError": false
-  }
+  "typescript.tsdk": "node_modules\\typescript\\lib"
 }

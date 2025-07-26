@@ -1,8 +1,8 @@
 import { type FileHandle, open } from 'node:fs/promises'
 import { type ReadStream, createReadStream } from 'node:fs'
 import { type Interface, createInterface } from 'node:readline'
-import { join, extname } from 'node:path'
-import { pipeline } from 'node:stream'
+import { join, extname, relative, isAbsolute } from 'node:path'
+import { pipeline } from 'node:stream/promises'
 import { EOL } from 'node:os'
 import { type Mime } from './mime.js'
 import { type Request } from './Request.js'
@@ -10,27 +10,16 @@ import { type Response } from './Response.js'
 import { asyncPause } from './utils.js'
 import { base64Favicon } from './favicon.js'
 
-function getMime (path: string, mime: Mime): string | null {
+function _getMime (path: string, mime: Mime): string | null {
   const ext = extname(path).toLowerCase()
   return ext.length > 1 ? mime.mimeOf(ext) : null
 }
 
-async function sendFavicon (response: Response): Promise<void> {
+async function _sendFavicon (response: Response): Promise<void> {
   const buff = Buffer.from(base64Favicon, 'base64')
   response.headers.contentType('image/x-icon', false)
   response.headers.contentLength(buff.byteLength, false)
-  response.sendHeaders()
-  response._internalSent |= 0b0110
-  try {
-    await new Promise<void>((ok) => {
-      response._serverResponse.end(buff, () => {
-        response._internalSent |= 0b1000
-        ok()
-      })
-    })
-  } catch (e) {
-    console.error(e)
-  }
+  return response.bodyEnd(buff)
 }
 
 /**
@@ -48,31 +37,24 @@ async function sendFile (path: string, response: Response, mime: Mime | string):
     if (!stats.isFile()) {
       throw new Error(`File "${path}" Not Found.`)
     }
-    const mimeType = typeof mime === 'string' ? mime : getMime(path, mime)
+    const mimeType = typeof mime === 'string' ? mime : _getMime(path, mime)
     if (mimeType) {
       response.headers.contentType(mimeType, false)
     }
     response.headers.contentLength(stats.size, false)
     response.sendHeaders()
+    // Не будем усложнять Response - в статическом контексте его никто не использует и изменять поля напрямую безопасно
     response._internalSent |= 0b0010
+    await response._internalQueue
     if (stats.size > 0) {
-      await new Promise<void>((ok, err) => {
-        pipeline(fh.createReadStream(), response._serverResponse, (e) => {
-          if (e) {
-            err(e)
-          }
-          else {
-            ok()
-          }
-        })
-      })
+      await pipeline(fh.createReadStream(), response._serverResponse)
     }
-    await response._internalEnd()
   } catch (e) {
     console.error(e)
+    throw e
   }
   finally {
-    // @ts-ignore
+    // @ts-expect-error
     fh?.close().catch(console.error)
   }
 }
@@ -88,13 +70,14 @@ async function sendFileSlow (path: string, response: Response, mime: Mime | stri
     if (!stats.isFile()) {
       throw new Error(`File "${path}" Not Found.`)
     }
-    const m = typeof mime === 'string' ? mime : getMime(path, mime)
-    if (m) {
-      response.headers.contentType(m, false)
+    const mimeType = typeof mime === 'string' ? mime : _getMime(path, mime)
+    if (mimeType) {
+      response.headers.contentType(mimeType, false)
     }
     response.headers.contentLength(stats.size, false)
     response.sendHeaders()
     response._internalSent |= 0b0010
+    await response._internalQueue
     if (stats.size > 0) {
       const chunkSize = Math.ceil(stats.size / ((time || 1) * 50))
       const buff = Buffer.alloc(chunkSize)
@@ -118,12 +101,77 @@ async function sendFileSlow (path: string, response: Response, mime: Mime | stri
         await asyncPause(50)
       }
     }
-    await response._internalEnd()
   } catch (e) {
     console.error(e)
+    throw e
   }
   finally {
-    // @ts-ignore
+    // @ts-expect-error
+    fh?.close().catch(console.error)
+  }
+}
+
+/**
+ * Читает файл в Response используя заголовок Range
+ */
+async function sendStreamableFile (path: string, request: Request, response: Response, mime: Mime | string): Promise<void> {
+  let fh: FileHandle
+  try {
+    fh = await open(path, 'r')
+    const stats = await fh.stat()
+    if (!stats.isFile()) {
+      throw new Error(`File "${path}" Not Found.`)
+    }
+
+    const rangeHeader = request.incomingMessage.headers.range
+    // Определяем Content-Type
+    const mimeType = typeof mime === 'string' ? mime : _getMime(path, mime)
+    if (mimeType) {
+      response.headers.contentType(mimeType, false)
+    }
+
+    // Если есть заголовок Range, отдаем часть файла
+    if (rangeHeader) {
+      // Парсим 'bytes=12345-'
+      const match = /bytes=(\d+)-(\d*)?/.exec(rangeHeader)
+      if (!match) {
+        // Если формат Range некорректен, отдаем ошибку.
+        return Promise.resolve(response.bodyFail(416, 'Range Not Satisfiable'))
+      }
+
+      const start = Number.parseInt(match[1]!, 10)
+      // Клиент может указать и конечный байт
+      const end = match[2] ? Number.parseInt(match[2], 10) : stats.size - 1
+
+      if (start >= stats.size || end >= stats.size) {
+        response.headers.set('Content-Range', `bytes */${stats.size}`)
+        return Promise.resolve(response.bodyFail(416, 'Range Not Satisfiable'))
+      }
+
+      const contentLength = (end - start) + 1
+      // Устанавливаем статус и необходимые заголовки для частичного контента
+      response.code = 206 // Partial Content
+      response.headers.set('content-range', `bytes ${start}-${end}/${stats.size}`)
+      response.headers.set('content-length', contentLength.toString())
+      response.headers.set('accept-ranges', 'bytes') // Сообщаем, что поддерживаем range-запросы
+      response.sendHeaders()
+      // Создаем поток для чтения только нужной части файла
+      await pipeline(fh.createReadStream({ autoClose: false, start, end }), response._serverResponse)
+    } else {
+      // Если заголовка Range нет, отдаем файл целиком
+      response.code = 200 // OK
+      response.headers.set('content-length', stats.size.toString())
+      // Сообщаем, что поддерживаем range-запросы, чтобы браузер мог их делать в будущем
+      response.headers.set('accept-ranges', 'bytes')
+      response.sendHeaders()
+      await pipeline(fh.createReadStream(), response._serverResponse)
+    }
+  } catch (_e) {
+    // Не бросаем ошибок. Иначе при перемещении ползунка они будут всегда
+    response._serverResponse.destroy()
+  }
+  finally {
+    // @ts-expect-error
     fh?.close().catch(console.error)
   }
 }
@@ -139,9 +187,7 @@ async function sendFileSlow (path: string, response: Response, mime: Mime | stri
  */
 async function sliceTextFile (path: string, startLine: number, endLine: number, delimiter?: undefined | null | string): Promise<Buffer> {
   const chunks: Buffer[] = []
-  if (!delimiter) {
-    delimiter = EOL
-  }
+  delimiter ??= EOL
   // https://nodejs.org/api/readline.html#example-read-file-stream-line-by-line
   let fileStream: ReadStream | undefined = undefined
   let rl: Interface | undefined = undefined
@@ -186,7 +232,7 @@ class FsStatic {
 
   private readonly _handlerIndexAndFavicon = (request: Request, response: Response): Promise<void> => {
     return (request.url.pathname === '/favicon.ico')
-      ? sendFavicon(response)
+      ? _sendFavicon(response)
       : this._sendFile(join(this._rootDir, request.url.pathname === '/' ? 'index.html' : request.requestPath.relativePath), response)
   }
 
@@ -208,13 +254,20 @@ class FsStatic {
   }
 
   private _sendFile (path: string, response: Response): Promise<void> {
-    return sendFile(path, response, this._mime)
+    const rel = relative(this._rootDir, path)
+    if (rel.startsWith('..') || isAbsolute(rel)) {
+      return Promise.resolve(response.bodyFail(403))
+    }
+    else {
+      return sendFile(path, response, this._mime)
+    }
   }
 }
 
 export {
-  FsStatic,
   sendFile,
   sendFileSlow,
-  sliceTextFile
+  sliceTextFile,
+  sendStreamableFile,
+  FsStatic
 }

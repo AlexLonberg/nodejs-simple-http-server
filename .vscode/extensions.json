@@ -1,7 +1,6 @@
 {
   "recommendations": [
     "dbaeumer.vscode-eslint",
-    "orta.vscode-jest",
-    "ryanluker.vscode-coverage-gutters"
+    "vitest.explorer"
   ]
 }

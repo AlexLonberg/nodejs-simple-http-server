@@ -9,9 +9,12 @@ import {
   type Response,
   createServer,
   openDirectoryDialog,
+  openFileDialog,
   sendFile,
-  sendFileSlow
+  sendFileSlow,
+  sendStreamableFile
 } from '../dist/index.js' // 'nodejs-simple-http-server'
+// } from '../src/index.js' // 'nodejs-simple-http-server'
 
 const root = join(cwd(), 'demo')
 
@@ -51,7 +54,7 @@ server.mime.register('.ts', 'text', 'plain', 'charset="utf-8"')
 server.static('/', root, { name: 'root' })
 // Статических маршрутов может быть неограниченное количество. По умолчанию, если обработчик не вызвал метод ответа
 // body*(...), запрос завершится ошибкой. Параметр `next:true|string` позволяет передать обработку следующему
-// обработчику или явно определить именованный маршрут. Необработанный запрос будет передан вышеопределенному маршруту
+// маршруту или явно определить именованный маршрут. Необработанный запрос будет передан вышеопределенному маршруту
 // `{name: 'root'}`. Имена маршрутов не могут быть установлены в цепочке выше - так как пути в вышестоящей цепочке уже
 // обработаны.
 server.static('/src', join(cwd(), 'src'), { next: 'root' })
@@ -72,13 +75,11 @@ server.get('/hello', (_reg: Request, res: Response) => {
   // одного из методов body/bodyFail/bodyJson/bodyJsonFail/bodyEnd().
   // Заголовки и код статуса перезаписывают значения по умолчанию для текущего маршрута.
   res.code = 200
-  // Первый вызов body() запретит дальнейшее использование bodyFail/bodyJson/bodyJsonFail().
+  // Первый вызов body() запретит дальнейшее использование bodyJson().
   res.body('Hello')
   // Ответ считается завершенным:
-  //   + либо после вызова bodyFail/bodyJson/bodyJsonFail()
-  //   + либо после вызова bodyEnd(...)
-  //   + либо, если был вызван body(), после завершения выполнения текущей функции, которая может возвращать Promise,
-  //     В этом случае bodyEnd() вызывается автоматически.
+  //   + либо после вызова bodyFail/bodyJson/bodyEnd()
+  //   + либо, после завершения выполнения текущей функции, которая может возвращать Promise, В этом случае bodyEnd() вызывается автоматически.
   // Метод body() отправляет данные немедленно, но не завершает запрос, что позволяет добавить данные.
   res.body(' World')
   // Вызов bodyEnd('data') с данными, без предварительного вызова body(...), установит заголовок 'content-length'.
@@ -89,7 +90,7 @@ server.get('/hello', (_reg: Request, res: Response) => {
 })
 
 // Этот обработчик GET ничем не отличается от get(), но автоматически устанавливает заголовок 'application/json', и, в
-// случае ошибки обработчика, отправит ожидаемый SimpleJsonResponse объект с ошибкой на любой запрос.
+// случае ошибки обработчика, отправит ожидаемый объект с ошибкой на любой запрос.
 server.getJson('/calculator/{operation:str:[add,subtract,multiply,divide]}/{value1:int:[0-100,1000]}/{value2:int}', (req: Request, res: Response) => {
   // Переменные {var} пути доступны через Request.vars. Допускаются только целые int >= 0 или str.
   // После второго двоеточия(необязательно) можно установить ограничения в массиве через запятую и без кавычек.
@@ -99,8 +100,12 @@ server.getJson('/calculator/{operation:str:[add,subtract,multiply,divide]}/{valu
   //
   // Если маршрут совпал - переменные точно будут доступны, неподходящее значение полностью игнорирует маршрут.
   // Переменная доступна по имени как объект {type:'str'|'int', value:string|number}
-  equal(req.vars.operation.type, 'str')
-  const { operation: { value: op }, value1: { value: v1 }, value2: { value: v2 } } = req.vars as unknown as { operation: { value: string }, value1: { value: number }, value2: { value: number } }
+  equal(req.vars?.operation?.type, 'str')
+  const {
+    operation: { value: op },
+    value1: { value: v1 },
+    value2: { value: v2 }
+  } = req.vars as unknown as { operation: { value: string }, value1: { value: number }, value2: { value: number } }
   const result =
     op === 'add'
       ? v1 + v2
@@ -112,10 +117,10 @@ server.getJson('/calculator/{operation:str:[add,subtract,multiply,divide]}/{valu
             ? (() => { throw new Error('Деление на ноль недопустимо.') })()
             : v1 / v2
   // Ошибки обработчика отлавливаются и, в случае если заголовки и данные еще не отправлены, возвращают подходящий ответ.
-  // На запрос '/calculator/divide/5/0' ответ будет иметь вид {ok: false, data: null, error: 'Деление на ноль недопустимо.'},
+  // На запрос '/calculator/divide/5/0' ответ будет иметь вид { error: 'Деление на ноль недопустимо.'},
   // в том числе, клиент получит код ответа 200, установленный для этого маршрута в случае ошибки.
-  res.bodySimpleJson(result)
-}, { failureCode: 200 })
+  res.bodyJson({ result })
+}, { failureCode: 400 })
 
 // Запросы post/postJson() работают по той же логике, что и get*(), но устанавливают ограничение для методов POST.
 // Все методы имеют третий необязательный параметр TRouteOptions, перезаписывающие параметры по умолчанию TOptions для
@@ -146,7 +151,7 @@ server.postJson('/api/example_post', async (req: Request, res: Response) => {
   // Заголовки установленные в этом обработчике полностью игнорируются и будут сброшены.
   res.headers.set('x-example-post-some', 'hello')
   // ... но можно установить любые данные в пользовательскую переменную и получить к ней доступ как в примере выше
-  res.value = req.contentType === 'json' ? (await req.readJson<{ data: string }>()).data : (await req.readText())
+  res.value = req.contentJson ? (await req.readJson<{ data: string }>()).data : (await req.readText())
 }, { next: 'example_post_name' })
 
 // Пример файлового диалога OS для выбора каталога.
@@ -154,12 +159,16 @@ server.getJson('/api/select_dir', async (_req: Request, res: Response) => {
   const result = await openDirectoryDialog()
   res.bodyJson(result)
 })
+server.getJson('/api/select_file', async (_req: Request, res: Response) => {
+  const result = await openFileDialog()
+  res.bodyJson(result)
+})
 
 // Пример выбора каталога и чтения списка файлов изображений.
 server.getJson('/api/read_dir', async (_req: Request, res: Response) => {
   const result = await openDirectoryDialog()
   if (result.ok) {
-    const dir = result.data!
+    const dir = result.value!
     const files: string[] = []
     const dirent = await readdir(dir, { encoding: 'utf-8', withFileTypes: true, recursive: false })
     for await (const item of dirent) {
@@ -168,7 +177,7 @@ server.getJson('/api/read_dir', async (_req: Request, res: Response) => {
         files.push(item.name)
       }
     }
-    result.data = { dir, files } as any
+    result.value = { dir, files } as any
   }
   res.bodyJson(result)
 })
@@ -177,12 +186,34 @@ server.getJson('/api/read_dir', async (_req: Request, res: Response) => {
 // в данном примере переменная req.vars.path получит абсолютный путь к файлу "C:/your/path/file.extension".
 server.get('/api/get_file/{path:str}', (req: Request, res: Response) => {
   // Не забываем - мы должны возвратить (void | Promise<void>)
-  return sendFile(req.vars.path.value as string, res, server.mime)
+  return sendFile(req.vars.path?.value as string, res, server.mime)
 })
 
 // Пример с симуляцией медленного чтения файла.
 server.get('/api/get_file/{time:int}/{path:str}', (req: Request, res: Response) => {
-  return sendFileSlow(req.vars.path.value as string, res, server.mime, req.vars.time.value as number)
+  return sendFileSlow(req.vars.path?.value as string, res, server.mime, req.vars.time?.value as number)
+})
+
+// Трансляция видеофайлов
+server.getJson('/api/read_dir_video', async (_req: Request, res: Response) => {
+  const result = await openDirectoryDialog()
+  if (result.ok) {
+    const dir = result.value!
+    const files: string[] = []
+    const dirent = await readdir(dir, { encoding: 'utf-8', withFileTypes: true, recursive: false })
+    for await (const item of dirent) {
+      const ext = extname(item.name).toLowerCase()
+      if (item.isFile() && server.mime.typeOf(ext) === 'video') {
+        files.push(item.name)
+      }
+    }
+    result.value = { dir, files } as any
+  }
+  res.bodyJson(result)
+})
+
+server.get('/video/{path:str}', (req: Request, res: Response) => {
+  return sendStreamableFile(req.vars.path?.value as string, req, res, server.mime)
 })
 
 void async function () {
